@@ -32,33 +32,37 @@ public class RandomItems {
 class TextGUI {   
     Program program;
     Scanner sc = new Scanner(System.in);
+    boolean stayOpen = true;
+    String userInput;
+    String helpText = ProgramVariables.HELP_TEXT;
     
     TextGUI(Program program) {
 	this.program = program;
     }
     
     public void start() {
-	boolean stayOpen = true;
-	String userInput;
-	String helpText = ProgramVariables.HELP_TEXT;
 	program.initialize();
-	print("type 'help' for options");
+	print(ProgramVariables.START_TEXT);
 	while(stayOpen) {    	    
-	    ans = sc.nextLine();
-	    switch (userInput) {
-	    case "help": print(helpText);
-		break;
-	    case "exit": stayOpen = false;
-		break;
-	    case "1": print("one");
-		break;
-	    case "2": print("two");
-		break;
-	    case "3": print("three");
-		break;
-	    }
+	    runLoop();
 	}
 	exit();
+    }
+
+    private void runLoop() {
+	userInput = sc.nextLine();
+	switch (userInput) {
+	case "help": print(helpText);
+	    break;
+	case "exit": stayOpen = false;
+	    break;
+	case "1": print("one");
+	    break;
+	case "2": print("two");
+	    break;
+	case "3": print("three");
+	    break;
+	}
     }
     
     private void exit() {
@@ -74,9 +78,17 @@ class Program {
     HashMap<String, Pool> pools = new HashMap<>();
 
     public void initialize() {
-	loadSavedPools();
+	String poolPath = getPoolPath();
+	PoolParser poolParser =
+	    PoolParser.getInstanceFromBaseDir(poolPath);
     }
-    
+
+    private String getPoolPath() {
+	File file = new File("");
+	String basePath = file.getAbsolutePath();
+	return basePath + "\\pools";
+    }
+
     public void addPool(String name, Pool pool) {
 	pools.put(name, pool);
     }
@@ -87,30 +99,34 @@ class Program {
 	    System.out.println(wi.getName());
 	}
     }
+}
 
-    private void loadSavedPools() {
-	String poolPath;
+class PoolParser {
+
+    HashMap<String, Pool> pools = new HashMap<>();
+    
+    private PoolParser(String baseDirectory) {
+	loadSavedPoolsInBaseDir(baseDirectory);
+    }
+
+    public static PoolParser getInstanceFromBaseDir(String baseDirectory) {
+	return new PoolParser(baseDirectory);
+    }
+
+    private void loadSavedPoolsInBaseDir(String baseDirectory) {
 	File[] files;
 	
-	poolPath = getPoolPath();
-	files = new File(poolPath).listFiles();
+	files = new File(baseDirectory).listFiles();
 	loadPoolsFromFiles(files);
     }
-
-    private String getPoolPath() {
-	File file = new File("");
-	String basePath = file.getAbsolutePath();
-	return basePath + "\\pools";
-    }
-
+    
     private void loadPoolsFromFiles(File[] files) {
 	for (File file : files) {
 	    if (file.isDirectory()) {
-		print("Directory: " + file.getName());
 		loadPoolsFromFiles(file.listFiles()); // recursion
 	    } else {
-		print("File: " + file.getName());
-		parseFileToPool(file);
+		if(isValidPoolString(file.getName()))
+		   parseFileToPool(file);
 	    }
 	}	
     }
@@ -122,14 +138,15 @@ class Program {
 	    String poolName;
 	    String itemName;
 	    int weight;
-
-	    poolName = file.getName();
+	    Item item;
+	    
+	    poolName = file.getName(); // todo remove .pool from string
 	    while((line = br.readLine()) != null) {
-		print(line);
 		if(isValidItemString(line)) {
-		    print("valid item");
+		    item = parseToItem(line);
+		    // add item to pool.
 		} else if(isValidPoolString(line)) {
-		    print("valid pool");
+		    // add pool name to a list to check for existence at the end.
 		}
 	    }
 	} catch(Exception ex) {
@@ -143,15 +160,12 @@ class Program {
 	String[] tokens;
 	
 	tokens = poolLine.split(",");
-
 	if(tokens.length != 2)
 	    return false;
-		
 	return true;
     }
 
     private boolean isValidPoolString(String poolLine) {
-
 	String[] tokens;
 	String extension;
 
@@ -161,6 +175,11 @@ class Program {
 	return true;
     }
 
+    private Item parseToItem(String poolLine) {
+	
+	return new Item("hey"); // todo
+    }
+  
     private String getFileExtension (String fileName) {
 	String extension;
 	String[] tokens = fileName.split(Pattern.quote("."));
@@ -173,11 +192,13 @@ class Program {
     private void print(String string) {
 	System.out.println(string);
     }	   
+
 }
 
 class Pool {
     String name;
-    private ArrayList<WeightedItem> weightedItems = new ArrayList<>();
+    private ArrayList<WeightedItem> weightedItems =
+	new ArrayList<>();
     
     public Pool(String name) {
 	this.name = name;
@@ -201,6 +222,10 @@ class WeightedItem {
     public int weight;
     public Item item;
 
+    // could have arrayList of items and pools..
+    // consider using a Tree data structure
+    // since this is a tree application........
+    
     public WeightedItem(Item item, int weight) {
 	this.item = item;
 	this.weight = weight;
@@ -215,24 +240,16 @@ class Item {
     public String name;
     public Pool pool;
 
-    private Item(String name) {
+    public Item(String name) {
 	this.name = name;
-    }
-
-    private Item(Pool pool) {
-	this.pool = pool;
-    }
-
-    public static Item getNameInstance(String name) {
-	return new Item(name);
-    }
-
-    public static Item getPoolInstance(Pool pool) {
-	return new Item(pool);
-    }
+    }    
 }
 
 class ProgramVariables {
+    public static final String START_TEXT =
+	"Welcome to RandomItems!\n" +
+	"Type 'help' to see options";
+
     public static final String HELP_TEXT =
 	"'1' create pool\n" +
 	"'2' add Item to pool\n" +
