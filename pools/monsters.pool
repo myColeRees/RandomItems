@@ -1,6 +1,13 @@
 orc, 5
- -weapons.pool
- -armor.pool
+  weapons.pool
+  armor.pool
 goblin, 9
- -weapons.pool
+  weapons.pool
 fairy, 9
+human, 2
+  travel-pack.pool
+    small-treasure.pool
+human.pool, 3
+
+
+    

@@ -104,6 +104,7 @@ class Program {
 class PoolParser {
 
     HashMap<String, Pool> pools = new HashMap<>();
+    private Pool workingPool;
     
     private PoolParser(String baseDirectory) {
 	loadSavedPoolsInBaseDir(baseDirectory);
@@ -113,6 +114,10 @@ class PoolParser {
 	return new PoolParser(baseDirectory);
     }
 
+    public HashMap<String, Pool> getPools() {
+	return pools;
+    }
+    
     private void loadSavedPoolsInBaseDir(String baseDirectory) {
 	File[] files;
 	
@@ -126,29 +131,19 @@ class PoolParser {
 		loadPoolsFromFiles(file.listFiles()); // recursion
 	    } else {
 		if(isValidPoolString(file.getName()))
-		   parseFileToPool(file);
+		    parseFileToPool(file);
 	    }
 	}	
     }
 
     private Pool parseFileToPool(File file) {
 	try (FileReader fr = new FileReader(file);
-	     BufferedReader br = new BufferedReader(fr);) {
-	    String line;
-	    String poolName;
-	    String itemName;
-	    int weight;
-	    Item item;
-	    
-	    poolName = file.getName(); // todo remove .pool from string
-	    while((line = br.readLine()) != null) {
-		if(isValidItemString(line)) {
-		    item = parseToItem(line);
-		    // add item to pool.
-		} else if(isValidPoolString(line)) {
-		    // add pool name to a list to check for existence at the end.
-		}
-	    }
+	     BufferedReader br = new BufferedReader(fr);)
+	    {
+	    String line = reader.readLine();
+	    Item item = Item.getNonWeightedInstance(file.getName(),-1);
+	    processTreeData(br, item);
+	    pools.add(workingPool.getName(), workingPool);
 	} catch(Exception ex) {
 	    print(ex.getMessage());
 	    ex.printStackTrace();
@@ -156,6 +151,28 @@ class PoolParser {
 	return new Pool("name");
     }
 
+    private Item processTreeData(BufferedReader reader, WeightedItem previousItem) {
+	String line = reader.readLine();
+	WeightedItem currentItem;
+	int previousSubLevel;
+	int currentSubLevel;
+	
+	currentItem = parseStringToItem(line);
+	previousSubLevel = previousItem.getSubLevel();
+	currentSubLevel = currentItem.getSubLevel();
+	while (currentSubLevel > previousSubLevel) {
+	    previousItem.addItem(currentItem);
+	    currentItem = ProcessTreeData(reader, currentItem); // recurse
+	}
+	return currentItem;	
+    }
+
+    private boolean isInvalidItemString(String line) {
+	if (line == null || line.equals(""))
+	    return true;
+	return false;
+    }
+    
     private boolean isValidItemString(String poolLine) {
 	String[] tokens;
 	
@@ -175,9 +192,33 @@ class PoolParser {
 	return true;
     }
 
-    private Item parseToItem(String poolLine) {
+    private Item parseStringToItem(String poolLine) {
+	String[] tokens;
+	String name;
+	int weight;
+	int subLevel;
+	Item item;
 	
-	return new Item("hey"); // todo
+	if (isInvalidItemString(itemString)){
+	    return Item.getNonWeightedItem("",0,-9999);
+	} else {
+	    tokens = poolLine.split(",");
+	    name = tokens[0];
+	    subLevel = getSubLevel(poolLine);
+	}
+	if (tokens.length > 1) {
+	    weight = Integer.parseInt(tokens[1]);
+	    item = Item.getWeightedInstance(name, weight, subLevel);
+	} else {
+	    item = Item.getNonWeightedInstance(name, subLevel);
+	}
+	return item;
+    }
+
+    private int getSubLevel(String itemString) {
+	int leadingWhiteSpaces;
+	leadingWhiteSpaces = itemString.length - StringUtil.LeftTrim(itemString);
+	return (whiteSpaces/2);
     }
   
     private String getFileExtension (String fileName) {
@@ -188,61 +229,52 @@ class PoolParser {
 	    return "";
 	return tokens[tokens.length - 1];	
     }
-    
+
     private void print(String string) {
 	System.out.println(string);
     }	   
-
-}
-
-class Pool {
-    String name;
-    private ArrayList<WeightedItem> weightedItems =
-	new ArrayList<>();
-    
-    public Pool(String name) {
-	this.name = name;
-    }
-
-    public String getName() {
-	return name;
-    }
-
-    public ArrayList<WeightedItem> getWeightedItems() {
-	return weightedItems;
-    }
-    
-    public void addWeightedItem(WeightedItem weightedItem) {
-	weightedItems.add(weightedItem);
-    }
-}
-
-class WeightedItem {
-   
-    public int weight;
-    public Item item;
-
-    // could have arrayList of items and pools..
-    // consider using a Tree data structure
-    // since this is a tree application........
-    
-    public WeightedItem(Item item, int weight) {
-	this.item = item;
-	this.weight = weight;
-    }
-
-    public String getName() {
-	return item.name;
-    }
 }
 
 class Item {
-    public String name;
-    public Pool pool;
-
-    public Item(String name) {
+    private String name;
+    private String weight;
+    private int subLevel;
+    
+    private ArrayList<Item> itemList =
+	new ArrayList<>();
+    
+    private public Item(
+	String name,
+	int weight,
+	int subLevel)
+    {
 	this.name = name;
-    }    
+	this.weight = weight;
+	this.subLevel = subLevel;
+    }
+
+    public static Item getWeightedInstance(
+	String name,
+	int weight,
+	int subLevel)
+    {
+	return new Item(name, weight, subLevel);
+    }
+
+    public static Item getNonWeightedInstance(
+	String name,
+	int subLevel)
+    {
+	return new Item(name, null, subLevel);
+    }
+    
+    public String getName() {
+	return item.name;
+    }
+
+    public addItem(Item item) {
+	itemList.add(item);
+    }
 }
 
 class ProgramVariables {
@@ -261,4 +293,14 @@ class ProgramVariables {
 	"'8' randomize single item\n" +
 	"'help' prints options\n" +
 	"'exit' closes program\n";
+}
+
+class StringUtil {
+    public static String leftTrim(String s) {
+	int i = 0;
+	while (i < s.length() && Character.isWhitespace(s.charAt(i))) {
+	    i++;
+	}
+	return s.substring(i);
+    }
 }
